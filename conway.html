@@ -1,0 +1,252 @@
+<!--
+Conway : a Javascript (and of course HTML + CSS) based implementation of Conway's Game of Life 
+
+Principal Author: Abhishek Tiwary 
+-->
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Conway</title>
+<style type="text/css">
+html, body {
+    margin: 0; 
+    height: 100%; 
+    overflow: hidden
+} 
+
+body {
+    background-color: #e3e3e3;
+}
+
+.blkdiv {
+    position: relative;
+    float: left;
+    width: 25px;
+    min-width: 25px;
+    height: 25px; 
+    min-height: 25px;
+    background-color: #e3e3e3;  
+}
+
+div.cellholder {   
+    position: absolute; 
+    width: 100%; 
+    min-width: 100%;
+    height: 100%; 
+    min-height: 100%; 
+    top: 0px; 
+    left: 0px; 
+}
+</style>
+
+<script type="text/javascript">
+var mainWidth = 0;
+var mainHeight = 0;
+var oConway = null; 
+var iCount = 0;
+var arrCells = new Array();
+var cellHolder = null; 
+var toggleOffColor = "#e3e3e3";
+var toggleOnColor = "#1a1a1a";
+
+var Position = function(x, y) {
+    this.x = x; 
+    this.y = y;
+}
+
+var State = function(cell, alive) {
+    this.cell = cell; 
+    this.alive = alive; 
+}
+
+var Conway = function(width, height, cellholder, cellarray) {
+    this.width = width; 
+    this.height = height; 
+    this.stride = Math.floor(this.width / 25); 
+    this.maxX = this.stride; 
+    this.maxY = Math.floor(this.height / 25);
+    this.cellarray = cellarray; 
+    this.cellholder = cellholder; 
+
+    this.rpentomino = new Array(); 
+
+    this.nextalive = new Array(); 
+    this.nextdead = new Array();
+
+    // get a div at a given x, y position 
+    this.getDiv = function(x, y) {
+        var element_index = (y * this.stride) + x; 
+        return this.cellarray[element_index]; 
+    }
+
+    // draw the divs that form the initial Methuselahs 
+    this.drawDivs = function() {
+        for(var i=0; i < this.rpentomino.length; ++i) {
+            var temp_div = this.getDiv(this.rpentomino[i].x, this.rpentomino[i].y);
+            temp_div.cell.style.backgroundColor = toggleOnColor;
+            temp_div.alive = 1; 
+        }
+    }
+
+    // draw the next state 
+    this.drawState = function() {
+        var iterlen_alive = this.nextalive.length;
+        for(var i=0; i < iterlen_alive; ++i)
+        {
+            var temp_idx = this.nextalive.pop(); 
+            var temp_div = this.cellarray[temp_idx];
+            temp_div.alive = 1;
+        }
+
+        var iterlen_dead = this.nextdead.length;
+        for(var i=0; i < iterlen_dead; ++i) {
+            var temp_idx = this.nextdead.pop(); 
+            var temp_div = this.cellarray[temp_idx];
+            temp_div.alive = 0;
+        }
+
+        for(var i=0; i < this.cellarray.length; ++i) {
+            var temp_div = this.cellarray[i];
+            if(temp_div.alive == 1)
+                temp_div.cell.style.backgroundColor = toggleOnColor;
+            else
+                temp_div.cell.style.backgroundColor = toggleOffColor;
+        }
+    }
+
+    // the init function - this is where the Methuselahs are defined 
+    // and where the initial draw function is called 
+    this.initialize = function() {
+        this.rpentomino[0] = new Position(25,15);
+        this.rpentomino[1] = new Position(24,15);
+        this.rpentomino[2] = new Position(25,14);
+        this.rpentomino[3] = new Position(26,14);
+        this.rpentomino[4] = new Position(25,16);
+        this.drawDivs(); 
+    }
+
+    // get the number of alive cells in a 3x3 region centered at the given x, y position 
+    // note: the caller must subtract the state of the center entity 
+    this.getLivingNeighbors = function(x, y) { 
+        var neighbors = 0; 
+        var temp_div = null; 
+        for(var yprime=Math.max(0, y - 1); yprime < Math.min(y + 2, this.maxY); yprime++) {
+            for(var xprime=Math.max(0, x - 1); xprime < Math.min(x + 2, this.maxX); xprime++) {
+                temp_div = this.getDiv(xprime, yprime); 
+                neighbors += temp_div.alive; 
+            }
+        }
+        
+        return neighbors; 
+    } 
+
+    this.mainLoop = function() { 
+        for(var ih=0; ih < this.maxY; ih++) {
+            for(var iw=0; iw < this.maxX; iw++) {
+                var currdiv = this.getDiv(iw, ih);
+                var element_index = (ih * this.stride) + iw; 
+                var ncount = this.getLivingNeighbors(iw, ih); 
+                ncount = ncount - currdiv.alive; 
+
+                if(currdiv.alive == 1) {
+                    if(ncount < 2)
+                        this.nextdead.push(element_index);  
+                    else if(ncount > 3)
+                        this.nextdead.push(element_index); 
+                    else 
+                        this.nextalive.push(element_index); 
+                    continue; 
+                }
+                else {
+                    if(ncount == 3)
+                        this.nextalive.push(element_index);  
+                    continue; 
+                }
+            }
+        }
+    }
+
+}
+
+function getMainDims() {
+    if(typeof(window.innerWidth == 'number')) {
+        mainWidth = window.innerWidth;
+        mainHeight = window.innerHeight;
+    }
+    else if(document.documentElement &&
+            (document.documentElement.clientWidth || document.documentElement.clientHeight)) {
+        mainWidth = document.documentElement.clientWidth;
+        mainHeight = document.documentElement.clientHeight;
+    }
+    else if(document.body && 
+            (document.body.clientWidth || document.body.clientHeight)) {
+        mainWidth = document.body.clientWidth;
+        mainHeight = document.body.clientHeight;
+    }
+    console.log(mainWidth + ", " + mainHeight); 
+}
+
+function appender() {
+    var newDiv = document.createElement("div");
+    newDiv.setAttribute("id", iCount);
+    newDiv.setAttribute("class", "blkdiv");
+    newDiv.innerHTML = "&nbsp;";
+    cellHolder.appendChild(newDiv);
+    arrCells[iCount] = new State(newDiv, 0); 
+    iCount++;
+}
+
+function appendDivs() {
+    iCount = 0; 
+    var ilimitx = Math.floor(mainWidth / 25); 
+    var ilimity = Math.floor(mainHeight / 25);
+    var cellHolder = document.getElementById('cellholder');
+    for(var y=0; y < ilimity; ++y) {
+        for(var x=0; x < ilimitx; ++x) {
+            appender();
+        }
+    }
+}
+
+function animate() {
+    oConway.mainLoop();
+    oConway.drawState();
+}
+
+//
+// event handlers 
+//
+window.onload = function init() {
+    console.log("Reached init()"); 
+    cellHolder = document.getElementById('cellholder');
+    getMainDims(); 
+    appendDivs(); 
+
+    oConway = new Conway(mainWidth, mainHeight, cellHolder, arrCells); 
+    oConway.initialize();
+
+    setInterval(animate, 250);
+}
+
+window.onresize = function() {
+    while(cellHolder.firstChild) {
+        cellHolder.removeChild(cellHolder.firstChild);
+    } 
+    arrCells = new Array(); 
+    getMainDims();
+    appendDivs(); 
+    oConway = new Conway(mainWidth, mainHeight, cellHolder, arrCells); 
+    oConway.initialize();
+}
+
+</script>
+</head>
+
+<body>
+<div id="cellholder" class="cellholder">
+</div>
+
+</body>
+</html>
+
